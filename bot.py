@@ -1,6 +1,9 @@
 import discord
 import responses
 
+from discord import app_commands
+from discord.ext import commands
+
 
 async def send_message(message, user_message, is_private):
     try:
@@ -21,6 +24,9 @@ def run_discord_bot():
     async def on_ready():
         print(f'{client.user} is now running!')
 
+
+
+
     @client.event
     async def on_message(message):
         if message.author == client.user:
@@ -37,5 +43,6 @@ def run_discord_bot():
             await send_message(message, user_message, is_private=True)
         else:
             await send_message(message, user_message, is_private=False)
+
 
     client.run(TOKEN)
