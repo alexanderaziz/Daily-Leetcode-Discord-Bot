@@ -42,6 +42,7 @@ async def on_message(message):
 
         if message.content == 'hello':
             await message.channel.send('Hello!')
+
         elif message.content == 'help':
             await message.channel.send('List of Commands:\n'
                                        '$help  -  Shows a list of commands\n'
@@ -52,7 +53,10 @@ async def on_message(message):
                                        '2. make sure no channels/categories conflict with the bots naming scheme, Currently it is: "' + constants.CATEGORY_NAME + '" and ' + '"' + constants.ANOUNCEMENT_CHANNEL_NAME + '"\n'
                                        '3. use $setup')
         elif message.content == 'setup':
-            await setup_local(message)
+            if message.author.guild_permissions.administrator:
+                await setup_local(message)
+            else:
+                await message.channel.send('You do not have permissions to use this command. You must be an admin')
         else:
             print(f'${message.content} is not a valid command therefore nothing sent in channel')
     else:
@@ -68,6 +72,10 @@ async def setup_local(message):
 
     await new_category_local(guild, constants.CATEGORY_NAME)
     await new_text_channel_local(guild, constants.ANOUNCEMENT_CHANNEL_NAME, constants.CATEGORY_NAME)
+
+    t = datetime.datetime.now()
+    new_solution_text_channel = str(t.year) + "-" + str(t.month) + "-" + str(t.day) + "-solutions"
+    await new_text_channel_local(guild, new_solution_text_channel, constants.CATEGORY_NAME)
 
     link = await daily_leetcode_scraper()
     await announcement_local(guild, "@everyone\nDaily LeetCode Challenge: " + link + " \nPost your solutions in #put something here!")
@@ -103,24 +111,23 @@ async def schedule_daily_message(initial):
     t = datetime.datetime.now()
     await new_text_channel_global(new_solution_text_channel, constants.CATEGORY_NAME)
 
-    await lock_yesterday_solution()
+    await lock_yesterday_solution(new_solution_text_channel)
 
 
-async def lock_yesterday_solution():
+async def lock_yesterday_solution(new_solution_text_channel):
     t = datetime.datetime.now()
-    yesterday = t.replace(day=t.day)
+    yesterday = t.replace(day=t.day - 1)
     old_channel_name = str(yesterday.year) + "-" +  str(yesterday.month) + "-" + str(yesterday.day) + "-solutions"
     for guild in client.guilds:
-        # print(guild.name)
         for category in guild.categories:
-            # print("   " + category.name)
             if(category.name == constants.CATEGORY_NAME):
                 for channel in category.text_channels:
-                    # print("            " + channel.name + " == " + old_channel_name)
                     if(channel.name == old_channel_name):
-                        # print("IT WORKED!!!!!")
                         await channel.set_permissions(guild.default_role, send_messages=False, read_messages=True)
                         await channel.edit(name="🔒" + old_channel_name)
+                        for new_channel in category.text_channels:
+                            if new_channel.name == new_solution_text_channel:
+                                await channel.move(after=new_channel)
 
 
 async def announcement_global(announcement_string):
@@ -161,12 +168,9 @@ async def new_text_channel_local(guild, new_channel_name, category_name):
         if (category.name == category_name):
             channel_found = False
             for channel in category.text_channels:
-                # print("Category: " + category.name + "   Channel: " + channel.name + " == " + new_channel_name)
                 if channel.name == new_channel_name:
                     channel_found = True
-                    # print("Channel: " + new_channel_name + " already exists so nothing happens")
             if (not channel_found):
-                # print("category where new channel is created: " + category.name)
                 await category.create_text_channel(new_channel_name)
     return
 
@@ -174,9 +178,7 @@ async def new_category_global(new_category_name):
     for guild in client.guilds:
         found_category = False
         for category in guild.categories:
-            # print("Category Name: " + category.name)
             if category.name == new_category_name:
-                # print("Category: " + new_category_name + " already exists so nothing happens")
                 found_category = True
 
         if not found_category:
@@ -186,9 +188,7 @@ async def new_category_global(new_category_name):
 async def new_category_local(guild, new_category_name):
     found_category = False
     for category in guild.categories:
-        # print("Category Name: " + category.name)
         if category.name == new_category_name:
-            # print("Category: " + new_category_name + " already exists so nothing happens")
             found_category = True
 
     if not found_category:
